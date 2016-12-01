@@ -82,6 +82,9 @@ END IF
 #ifdef chron
     CALL CPU_TIME(timei)
 #endif
+    ! Increment number of steps
+    istep=istep+1
+    ! Solve
     time=time+2.0/RK1_rai(1)*deltat
     CALL buildrhs(RK1_rai,.FALSE. ); CALL linsolve(RK1_rai(1)/deltat)
     time=time+2.0/RK2_rai(1)*deltat
@@ -113,8 +116,6 @@ END IF
         globalstats=globalstats+localstats; WRITE(102,POS=1) istats,globalstats/istats
       END IF
     END IF
-    ! Increment number of steps
-    istep=istep+1
   END DO timeloop
 
   IF (has_terminal) CLOSE(102)
