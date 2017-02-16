@@ -22,7 +22,7 @@ PROGRAM channel
 #endif
   ! Stats
   INTEGER(C_SIZE_T) :: nstats=20, istats=0
-  LOGICAL :: io
+  INTEGER :: io
   REAL(C_DOUBLE), allocatable :: localstats(:,:), globalstats(:,:)
   REAL(C_DOUBLE) :: c
 
