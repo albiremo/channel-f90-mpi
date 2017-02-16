@@ -57,7 +57,7 @@ MODULE dnsdata
                     RK3_rai(1:3)=(/ 120.0d0/20.0d0, 90.0d0/20.0d0, 50.0d0/20.0d0 /)
   !Outstats
   real(C_DOUBLE) :: cfl=0.0d0
-  integer(C_SIZE_T) :: istep,nstep
+  integer(C_SIZE_T) :: istep,nstep,ifield
 
   CONTAINS
 
@@ -441,7 +441,7 @@ MODULE dnsdata
      filename="Dati.cart.out"; CALL save_restart_file(filename)
    END IF
    IF ( (FLOOR((time+0.5*deltat)/dt_field) > FLOOR((time-0.5*deltat)/dt_field)) .AND. (time>0) ) THEN
-     WRITE(istring,*) FLOOR(time/dt_field)
+     ifield=ifield+1;  WRITE(istring,*) FLOOR(ifield)
      IF (has_terminal) WRITE(*,*) "Writing Dati.cart."//TRIM(ADJUSTL(istring))//".out at time ", time
      filename="Dati.cart."//TRIM(ADJUSTL(istring))//".out"; CALL save_restart_file(filename)
    END IF

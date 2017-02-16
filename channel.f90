@@ -4,13 +4,12 @@
 !       of a turbulent channel flow          !
 !                                            !
 !============================================!
-!
+! 
 ! This program has been written following the
 ! KISS (Keep it Simple and Stupid) philosophy
-!
+! 
 ! Author: Dr.-Ing. Davide Gatti
-! Date  : 28/Jul/2015
-!
+! 
 
 ! Measure per timestep execution time
 !#define chron
@@ -55,6 +54,9 @@ PROGRAM channel
       globalstats=globalstats*istats
     END IF
   END IF
+
+  ! Field number (for output)
+  ifield=FLOOR(time/dt_field)
 
 IF (has_terminal) THEN
   ! Output DNS.in
@@ -120,9 +122,9 @@ END IF
 
   IF (has_terminal) CLOSE(102)
   ! Realease memory
-   CALL free_fft()
-   CALL free_memory()
-   CALL MPI_Finalize()
+  CALL free_fft()
+  CALL free_memory()
+  CALL MPI_Finalize()
 
 
 END PROGRAM channel
