@@ -22,8 +22,9 @@ PROGRAM channel
 #endif
   ! Stats
   INTEGER(C_SIZE_T) :: nstats=20, istats=0
-  INTEGER :: io
+  LOGICAL :: io
   REAL(C_DOUBLE), allocatable :: localstats(:,:), globalstats(:,:)
+  COMPLEX(C_DOUBLE_COMPLEX), allocatable :: localpsd(:,:,:), globalpsd(:,:,:)
   REAL(C_DOUBLE) :: c
 
   ! Init MPI
@@ -43,15 +44,17 @@ PROGRAM channel
 
   ! Allocate memory for stats
   ALLOCATE(localstats(-1:ny+1,1:5),globalstats(-1:ny+1,1:5))
+  ALLOCATE(localpsd(-1:ny+1,-nz:nz,2:5),globalpsd(-1:ny+1,-nz:nz,2:5))
   IF (has_terminal) THEN 
     INQUIRE(FILE="stats.dat",EXIST=io)
-    IF (io==0) THEN 
-      istats=0; globalstats=0
+    IF (io) THEN 
+      istats=0; globalstats=0; localpsd=0; globalpsd=0
       OPEN(UNIT=102,FILE='stats.dat',STATUS="new",ACCESS='stream',ACTION='readwrite')
     ELSE
       OPEN(UNIT=102,FILE='stats.dat',STATUS="old",ACCESS='stream',ACTION='readwrite')
-      READ(102,POS=1) istats, globalstats
+      READ(102,POS=1) istats, globalstats, globalpsd
       globalstats=globalstats*istats
+      globalpsd=globalpsd*istats
     END IF
   END IF
 
@@ -100,22 +103,24 @@ END IF
 #endif
     ! Compute statistics
     IF (MOD(istep,nstats)==0) THEN
-      localstats=0; istats=istats+1
-      IF (has_terminal) localstats(:,1)=localstats(:,1)+dreal(V(:,0,0,1))
+      localpsd=0; istats=istats+1
+      IF (has_terminal) localstats(:,1)=dreal(V(:,0,0,1))
       DO ix=nx0,nxN
         c = MERGE(1.0d0,2.0d0,ix==0) 
-        localstats(:,5) = localstats(:,5) +c*SUM(V(:,:,ix,1)*CONJG(V(:,:,ix,2)),2)
-        localstats(:,2) = localstats(:,2) +c*SUM(V(:,:,ix,1)*CONJG(V(:,:,ix,1)),2)
-        localstats(:,3) = localstats(:,3) +c*SUM(V(:,:,ix,2)*CONJG(V(:,:,ix,2)),2)
-        localstats(:,4) = localstats(:,4) +c*SUM(V(:,:,ix,3)*CONJG(V(:,:,ix,3)),2)
+        localpsd(:,:,2) = localpsd(:,:,2) +c*(V(:,:,ix,1)*CONJG(V(:,:,ix,1)))
+	localpsd(:,:,3) = localpsd(:,:,3) +c*(V(:,:,ix,2)*CONJG(V(:,:,ix,2)))
+	localpsd(:,:,4) = localpsd(:,:,4) +c*(V(:,:,ix,3)*CONJG(V(:,:,ix,3)))
+	localpsd(:,:,5) = localpsd(:,:,5) +c*(V(:,:,ix,1)*CONJG(V(:,:,ix,2)))
       END DO
       IF (has_terminal) THEN
-        CALL MPI_Reduce(MPI_IN_PLACE,localstats,(ny+3)*5,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD)
+        CALL MPI_Reduce(MPI_IN_PLACE,localpsd,(ny+3)*(2*nz+1)*4,MPI_DOUBLE_COMPLEX,MPI_SUM,0,MPI_COMM_WORLD)
       ELSE 
-        CALL MPI_Reduce(localstats,localstats,(ny+3)*5,MPI_DOUBLE_PRECISION,MPI_SUM,0,MPI_COMM_WORLD)
+        CALL MPI_Reduce(localpsd,localpsd,(ny+3)*(2*nz+1)*4,MPI_DOUBLE_COMPLEX,MPI_SUM,0,MPI_COMM_WORLD)
       END IF
+      localstats(:,5) = SUM(localpsd(:,:,5),2); localstats(:,2) = SUM(localpsd(:,:,2),2)
+      localstats(:,3) = SUM(localpsd(:,:,3),2); localstats(:,4) = SUM(localpsd(:,:,4),2)
       IF (has_terminal) THEN
-        globalstats=globalstats+localstats; WRITE(102,POS=1) istats,globalstats/istats
+        globalstats=globalstats+localstats; globalpsd=globalpsd+localpsd; WRITE(102,POS=1) istats,globalstats/istats,globalpsd/istats
       END IF
     END IF
   END DO timeloop

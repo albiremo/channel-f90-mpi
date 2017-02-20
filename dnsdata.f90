@@ -441,7 +441,7 @@ MODULE dnsdata
      filename="Dati.cart.out"; CALL save_restart_file(filename)
    END IF
    IF ( (FLOOR((time+0.5*deltat)/dt_field) > FLOOR((time-0.5*deltat)/dt_field)) .AND. (time>0) ) THEN
-     ifield=ifield+1;  WRITE(istring,*) FLOOR(ifield)
+     ifield=ifield+1;  WRITE(istring,*) ifield
      IF (has_terminal) WRITE(*,*) "Writing Dati.cart."//TRIM(ADJUSTL(istring))//".out at time ", time
      filename="Dati.cart."//TRIM(ADJUSTL(istring))//".out"; CALL save_restart_file(filename)
    END IF
