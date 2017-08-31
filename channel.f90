@@ -47,7 +47,6 @@ PROGRAM channel
   ALLOCATE(localpsd(-1:ny+1,-nz:nz,2:5),globalpsd(-1:ny+1,-nz:nz,2:5))
   IF (has_terminal) THEN 
     INQUIRE(FILE="stats.dat",EXIST=io)
-    WRITE(*,*) "io=",io
     IF (.NOT. io) THEN 
       istats=0; globalstats=0; localpsd=0; globalpsd=0
       OPEN(UNIT=102,FILE='stats.dat',STATUS="new",ACCESS='stream',ACTION='readwrite')
