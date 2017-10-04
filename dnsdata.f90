@@ -57,7 +57,7 @@ MODULE dnsdata
                     RK3_rai(1:3)=(/ 120.0d0/20.0d0, 90.0d0/20.0d0, 50.0d0/20.0d0 /)
   !Outstats
   real(C_DOUBLE) :: cfl=0.0d0
-  integer(C_SIZE_T) :: istep,nstep,ifield
+  integer(C_SIZE_T) :: istep,nstep,ifield,nstats
 
   CONTAINS
 
@@ -75,7 +75,7 @@ MODULE dnsdata
     READ(15, *) meanpx, meanpz; READ(15, *) meanflowx, meanflowz
     READ(15, *) deltat, cflmax, time
     READ(15, *) dt_field, dt_save, t_max, time_from_restart
-    READ(15, *) nstep
+    READ(15, *) nstep,nstats
     CLOSE(15)
     dx=PI/(alfa0*nxd); dz=2.0d0*PI/(beta0*nzd);  factor=1.0d0/(2.0d0*nxd*nzd)
   END SUBROUTINE read_dnsin
@@ -93,7 +93,7 @@ MODULE dnsdata
     y=(/(ymin+0.5d0*(ymax-ymin)*(tanh(a*(2.0d0*real(iy)/real(ny)-1))/tanh(a)+0.5d0*(ymax-ymin)), iy=-1, ny+1)/)
     dy=(/( 0.5d0*(y(iy+1)-y(iy-1)) , iy=1, ny-1)/)
     izd=(/(merge(iz,nzd+iz,iz>=0),iz=-nz,nz)/);     ialfa=(/(dcmplx(0.0d0,ix*alfa0),ix=nx0,nxN)/);
-    ibeta=(/(dcmplx(0.0d0,iz*beta0),iz=-nz,nz)/); 
+    ibeta=(/(dcmplx(0.0d0,iz*beta0),iz=-nz,nz)/);
     FORALL  (iz=-nz:nz,ix=nx0:nxN) k2(iz,ix)=(alfa0*ix)**2.0d0+(beta0*iz)**2.0d0
     IF (has_terminal) OPEN(UNIT=101,FILE='Runtimedata',ACTION='write')
   END SUBROUTINE init_memory
@@ -239,7 +239,7 @@ MODULE dnsdata
         CALL applybc_0(D2vmat,v0bc,v0m1bc)
         CALL applybc_n(D2vmat,vnbc,vnp1bc)
         V(1,iz,ix,2)=V(1,iz,ix,2)-D2vmat(1,-2)*bc0(iz,ix)%vy/v0m1bc(-2)-D2vmat(1,-1)*bc0(iz,ix)%v/v0bc(-1)
-        V(2,iz,ix,2)=V(2,iz,ix,2)-D2vmat(2,-2)*bc0(iz,ix)%v/v0bc(-1)       
+        V(2,iz,ix,2)=V(2,iz,ix,2)-D2vmat(2,-2)*bc0(iz,ix)%v/v0bc(-1)
         V(ny-1,iz,ix,2)=V(ny-1,iz,ix,2)-D2vmat(ny-1,2)*bcn(iz,ix)%vy/vnp1bc(2)-D2vmat(ny-1,1)*bcn(iz,ix)%v/vnbc(1)
         V(ny-2,iz,ix,2)=V(ny-2,iz,ix,2)-D2vmat(ny-2,2)*bcn(iz,ix)%v/vnbc(1)
         CALL applybc_0(etamat,eta0bc,eta0m1bc)
@@ -260,14 +260,14 @@ MODULE dnsdata
         V(ny,iz,ix,1)=(bcn(iz,ix)%eta-sum(V(ny-3:ny-1,iz,ix,1)*etanbc(-2:0)))/etanbc(1)
         V(ny+1,iz,ix,1)=-sum(V(ny-3:ny,iz,ix,1)*etanp1bc(-2:1))/etanp1bc(2)
         IF (ix==0 .AND. iz==0) THEN
-            V(:,0,0,3) = dcmplx(dimag(V(:,0,0,1)),0.d0); 
-            V(:,0,0,1) = dcmplx(dreal(V(:,0,0,1)),0.d0); 
+            V(:,0,0,3) = dcmplx(dimag(V(:,0,0,1)),0.d0);
+            V(:,0,0,1) = dcmplx(dreal(V(:,0,0,1)),0.d0);
             ucor(-1:0)=0; ucor(1:ny-1)=1; ucor(ny:ny+1)=0
             ucor(1:ny-1)=etamat.bsr.ucor(1:ny-1)
             ucor(0)=-sum(ucor(1:3)*eta0bc(0:2))/eta0bc(-1)
             ucor(-1)=-sum(ucor(0:3)*eta0m1bc(-1:2))/eta0m1bc(-2)
             ucor(ny)=-sum(ucor(ny-3:ny-1)*etanbc(-2:0))/etanbc(1)
-            ucor(ny+1)=-sum(ucor(ny-3:ny)*etanp1bc(-2:1))/etanp1bc(2)          
+            ucor(ny+1)=-sum(ucor(ny-3:ny)*etanp1bc(-2:1))/etanp1bc(2)
             IF (abs(meanflowx)>1.0d-7) THEN
               corrpx = (meanflowx-yintegr(dreal(V(:,0,0,1))))/yintegr(ucor)
               V(:,0,0,1)=dcmplx(dreal(V(:,0,0,1))+corrpx*ucor,dimag(V(:,0,0,1)))
@@ -293,7 +293,7 @@ MODULE dnsdata
      logical, intent(in) :: compute_cfl
      integer(C_INT) :: ix,iz,iV
      VVdz(1:nz+1,1:nxB,1:3,i)=V(iy,0:nz,nx0:nxN,1:3);         VVdz(nz+2:nzd-nz,1:nxB,1:3,i)=0;
-     VVdz(nzd+1-nz:nzd,1:nxB,1:3,i)=V(iy,-nz:-1,nx0:nxN,1:3); 
+     VVdz(nzd+1-nz:nzd,1:nxB,1:3,i)=V(iy,-nz:-1,nx0:nxN,1:3);
      DO iV=1,3
        CALL IFT(VVdz(1:nzd,1:nxB,iV,i)); CALL MPI_Alltoall(VVdz(:,:,iV,i), 1, Mdz, VVdx(:,:,iV,i), 1, Mdx, MPI_COMM_WORLD)
        VVdx(nx+2:nxd+1,1:nzB,iV,i)=0;    CALL RFT(VVdx(1:nxd+1,1:nzB,iV,i),rVVdx(1:2*nxd+2,1:nzB,iV,i));
@@ -309,7 +309,7 @@ MODULE dnsdata
      rVVdx(1:2*nxd,1:nzB,6,i)  = rVVdx(1:2*nxd,1:nzB,1,i)  * rVVdx(1:2*nxd,1:nzB,3,i)*factor
      rVVdx(1:2*nxd,1:nzB,1:3,i)= rVVdx(1:2*nxd,1:nzB,1:3,i)* rVVdx(1:2*nxd,1:nzB,1:3,i)*factor
      DO iV=1,6
-       CALL HFT(rVVdx(1:2*nxd+2,1:nzB,iV,i),VVdx(1:nxd+1,1:nzB,iV,i)); 
+       CALL HFT(rVVdx(1:2*nxd+2,1:nzB,iV,i),VVdx(1:nxd+1,1:nzB,iV,i));
        CALL MPI_Alltoall(VVdx(:,:,iV,i), 1, Mdx, VVdz(:,:,iV,i), 1, Mdz, MPI_COMM_WORLD)
        CALL FFT(VVdz(1:nzd,1:nxB,iV,i));
      END DO
@@ -322,7 +322,7 @@ MODULE dnsdata
   ! (uu,vv,ww,uv,vw,uw) = (1,2,3,4,5,6)
 #define DD(f,k) ( der(iy)%f(-2)*VVdz(izd(iz)+1,ix+1-nx0,k,im2)+der(iy)%f(-1)*VVdz(izd(iz)+1,ix+1-nx0,k,im1)+der(iy)%f(0)*VVdz(izd(iz)+1,ix+1-nx0,k,i0)+ \
                   der(iy)%f(1 )*VVdz(izd(iz)+1,ix+1-nx0,k,i1 )+der(iy)%f(2 )*VVdz(izd(iz)+1,ix+1-nx0,k,i2 ) )
-#define timescheme(rhs,old,unkn,impl,expl) rhs=ODE(1)*(unkn)/deltat+(impl)+ODE(2)*(expl)-ODE(3)*(old); old=expl                   
+#define timescheme(rhs,old,unkn,impl,expl) rhs=ODE(1)*(unkn)/deltat+(impl)+ODE(2)*(expl)-ODE(3)*(old); old=expl
   SUBROUTINE buildrhs(ODE,compute_cfl)
     logical, intent(in) :: compute_cfl
     real(C_DOUBLE), intent(in) :: ODE(1:3)
@@ -333,7 +333,7 @@ MODULE dnsdata
       CALL convolutions(iy+2,imod(iy+2)+1,compute_cfl)
       IF (iy>=1) THEN
         im2=imod(iy-2)+1; im1=imod(iy-1)+1; i0=imod(iy)+1; i1=imod(iy+1)+1; i2=imod(iy+2)+1;
-        DO iz=-nz,nz 
+        DO iz=-nz,nz
         DO ix=nx0,nxN
             DD0_6=DD(d0,6); DD1_6=DD(d1,6);
             rhsu=-ialfa(ix)*DD(d0,1)-DD(d1,4)-ibeta(iz)*DD0_6
@@ -357,15 +357,15 @@ MODULE dnsdata
       END IF
       END IF
       IF (iy-2>=1) THEN
-        DO CONCURRENT (ix=nx0:nxN, iz=-nz:nz) 
-          V(iy-2,iz,ix,1) = newrhs(iy-2,iz,ix)%eta; V(iy-2,iz,ix,2) = newrhs(iy-2,iz,ix)%d2v; 
+        DO CONCURRENT (ix=nx0:nxN, iz=-nz:nz)
+          V(iy-2,iz,ix,1) = newrhs(iy-2,iz,ix)%eta; V(iy-2,iz,ix,2) = newrhs(iy-2,iz,ix)%d2v;
         END DO
-      END IF      
+      END IF
     END DO
   END SUBROUTINE buildrhs
 
   !--------------------------------------------------------------!
-  !-------------------- read_restart_file -----------------------! 
+  !-------------------- read_restart_file -----------------------!
   SUBROUTINE read_restart_file()
     integer(C_SIZE_T) :: iV,ix,iy,iz,io,nxB_t,nx_t,nz_t,ny_t,iproc_t,br=8,bc=16,iV_t,b1=1,b7=7,b3=3
     integer(C_SIZE_T) :: pos
